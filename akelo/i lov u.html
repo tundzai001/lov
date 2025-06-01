@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
     <title> i lov u so much </title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <meta name="color-scheme" content="dark light">
     <style>
         * {
             margin: 0;
@@ -180,15 +181,29 @@
                 font-size: 12px;
             }
         }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: radial-gradient(ellipse at center, #0a0a0a 0%, #000000 100%) !important;
+                color: #fff !important;
+            }
+        }
+        @media (prefers-color-scheme: light) {
+            body {
+                background: radial-gradient(ellipse at center, #0a0a0a 0%, #000000 100%) !important;
+                color: #fff !important;
+            }
+        }
     </style>
 </head>
 <body>
+    <div id="music-overlay" style="position:fixed;z-index:9999;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.85);color:#fff;font-size:20px;letter-spacing:1px;cursor:pointer;">
+        Chạm vào màn hình để bắt đầu nhạc 🎵
+    </div>
     <div class="galaxy-container" id="galaxy">
         <!-- Các text particles sẽ được tạo bằng JavaScript -->
     </div>
-
     <audio id="bg-music" src="ordinary.mp3" loop></audio>
-
     <script>
         const messages = [
             "Happy children's day",
@@ -483,13 +498,16 @@
         // Phát nhạc nền khi trang tải xong (nếu được phép)
         window.addEventListener('DOMContentLoaded', function() {
             const audio = document.getElementById('bg-music');
-            // Một số trình duyệt yêu cầu tương tác người dùng, nhưng vẫn thử phát tự động
-            audio.volume = 0.5; // chỉnh âm lượng nếu muốn
-            audio.play().catch(() => {
-                // Nếu bị chặn, có thể hướng dẫn người dùng nhấn vào màn hình để phát nhạc
-                document.body.addEventListener('click', function playMusicOnce() {
+            const overlay = document.getElementById('music-overlay');
+            audio.volume = 0.5;
+            audio.play().then(() => {
+                overlay.style.display = 'none';
+            }).catch(() => {
+                overlay.style.display = 'flex';
+                overlay.addEventListener('click', function playMusicOnce() {
                     audio.play();
-                    document.body.removeEventListener('click', playMusicOnce);
+                    overlay.style.display = 'none';
+                    overlay.removeEventListener('click', playMusicOnce);
                 });
             });
         });
