@@ -504,11 +504,16 @@
                 overlay.style.display = 'none';
             }).catch(() => {
                 overlay.style.display = 'flex';
-                overlay.addEventListener('click', function playMusicOnce() {
-                    audio.play();
-                    overlay.style.display = 'none';
+                // Lắng nghe cả click và touchstart
+                function playMusicOnce() {
+                    audio.play().then(() => {
+                        overlay.style.display = 'none';
+                    });
                     overlay.removeEventListener('click', playMusicOnce);
-                });
+                    overlay.removeEventListener('touchstart', playMusicOnce);
+                }
+                overlay.addEventListener('click', playMusicOnce);
+                overlay.addEventListener('touchstart', playMusicOnce);
             });
         });
     </script>
