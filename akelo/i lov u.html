@@ -203,7 +203,7 @@
     <div class="galaxy-container" id="galaxy">
         <!-- Các text particles sẽ được tạo bằng JavaScript -->
     </div>
-    <audio id="bg-music" src="ordinary.mp3" loop></audio>
+    <audio id="bg-music" src="ordinary.mp3" loop preload="auto"></audio>
     <script>
         const messages = [
             "Happy children's day",
@@ -257,15 +257,32 @@
         const starCount = isSmallMobile ? 250 : isMobile ? 350 : 500;
         const particleInterval = isMobile ? 150 : 200;
 
-        // Prevent scrolling and zooming
+        // Prevent scrolling and zooming - Fixed for Android
+        let touchStartY = 0;
+        let touchStartX = 0;
+        
+        document.addEventListener('touchstart', function(e) {
+            touchStartY = e.touches[0].clientY;
+            touchStartX = e.touches[0].clientX;
+        }, { passive: false });
+
         document.addEventListener('touchmove', function(e) {
-            e.preventDefault();
+            const touchY = e.touches[0].clientY;
+            const touchX = e.touches[0].clientX;
+            const deltaY = touchY - touchStartY;
+            const deltaX = touchX - touchStartX;
+            
+            // Prevent vertical scrolling
+            if (Math.abs(deltaY) > Math.abs(deltaX)) {
+                e.preventDefault();
+            }
         }, { passive: false });
 
         document.addEventListener('wheel', function(e) {
             e.preventDefault();
         }, { passive: false });
 
+        // Prevent zoom gestures on Android
         document.addEventListener('gesturestart', function(e) {
             e.preventDefault();
         });
@@ -418,18 +435,19 @@
             isDragging = false;
         });
 
-        // Enhanced touch events for mobile
+        // Enhanced touch events for mobile - Fixed for Android
         let initialDistance = 0;
         let initialScale = 1;
+        let touchCount = 0;
 
         document.addEventListener('touchstart', (e) => {
-            e.preventDefault();
+            touchCount = e.touches.length;
             
-            if (e.touches.length === 1) {
+            if (touchCount === 1) {
                 isDragging = true;
                 lastMouseX = e.touches[0].clientX;
                 lastMouseY = e.touches[0].clientY;
-            } else if (e.touches.length === 2) {
+            } else if (touchCount === 2) {
                 // Pinch to zoom
                 isDragging = false;
                 const touch1 = e.touches[0];
@@ -439,13 +457,12 @@
                     Math.pow(touch2.clientY - touch1.clientY, 2)
                 );
                 initialScale = scale;
+                e.preventDefault();
             }
-        }, { passive: false });
+        });
 
         document.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            
-            if (e.touches.length === 1 && isDragging) {
+            if (touchCount === 1 && isDragging) {
                 const deltaX = e.touches[0].clientX - lastMouseX;
                 const deltaY = e.touches[0].clientY - lastMouseY;
                 
@@ -457,7 +474,7 @@
                 
                 lastMouseX = e.touches[0].clientX;
                 lastMouseY = e.touches[0].clientY;
-            } else if (e.touches.length === 2) {
+            } else if (touchCount === 2 && e.touches.length === 2) {
                 // Pinch to zoom
                 const touch1 = e.touches[0];
                 const touch2 = e.touches[1];
@@ -470,13 +487,14 @@
                 scale = Math.max(0.5, Math.min(2, initialScale * scaleChange));
                 
                 updateGalaxyTransform();
+                e.preventDefault();
             }
-        }, { passive: false });
+        });
 
         document.addEventListener('touchend', (e) => {
-            e.preventDefault();
             isDragging = false;
-        }, { passive: false });
+            touchCount = e.touches.length;
+        });
 
         // Handle orientation change
         window.addEventListener('orientationchange', () => {
@@ -495,26 +513,73 @@
             setTimeout(createTextParticle, i * (particleInterval * 0.6));
         }
 
-        // Phát nhạc nền khi trang tải xong (nếu được phép)
-        window.addEventListener('DOMContentLoaded', function() {
-            const audio = document.getElementById('bg-music');
-            const overlay = document.getElementById('music-overlay');
-            audio.volume = 0.5;
-            audio.play().then(() => {
-                overlay.style.display = 'none';
-            }).catch(() => {
-                overlay.style.display = 'flex';
-                // Lắng nghe cả click và touchstart
-                function playMusicOnce() {
-                    audio.play().then(() => {
-                        overlay.style.display = 'none';
+        // Audio handling - Fixed for Android
+        const audio = document.getElementById('bg-music');
+        const overlay = document.getElementById('music-overlay');
+        let audioInitialized = false;
+
+        // Set audio properties
+        audio.volume = 0.3;
+        audio.muted = false;
+        
+        // Function to start audio
+        function startAudio() {
+            if (!audioInitialized) {
+                audio.currentTime = 0;
+                audio.play().then(() => {
+                    overlay.style.display = 'none';
+                    audioInitialized = true;
+                }).catch((err) => {
+                    console.log('Audio play failed:', err);
+                    // Try again after a short delay
+                    setTimeout(() => {
+                        audio.play().then(() => {
+                            overlay.style.display = 'none';
+                            audioInitialized = true;
+                        }).catch(() => {
+                            // If still fails, just hide overlay
+                            overlay.style.display = 'none';
+                        });
+                    }, 100);
+                });
+            }
+        }
+
+        // Initialize audio on page load
+        window.addEventListener('load', function() {
+            // Try to play immediately
+            startAudio();
+            
+            // If autoplay fails, show overlay
+            setTimeout(() => {
+                if (!audioInitialized) {
+                    overlay.style.display = 'flex';
+                    
+                    // Multiple event listeners for better Android compatibility
+                    const events = ['click', 'touchstart', 'touchend', 'tap'];
+                    
+                    function handleUserInteraction(e) {
+                        e.preventDefault();
+                        startAudio();
+                        
+                        // Remove all event listeners
+                        events.forEach(event => {
+                            overlay.removeEventListener(event, handleUserInteraction);
+                        });
+                    }
+                    
+                    events.forEach(event => {
+                        overlay.addEventListener(event, handleUserInteraction, { passive: false });
                     });
-                    overlay.removeEventListener('click', playMusicOnce);
-                    overlay.removeEventListener('touchstart', playMusicOnce);
                 }
-                overlay.addEventListener('click', playMusicOnce);
-                overlay.addEventListener('touchstart', playMusicOnce);
-            });
+            }, 500);
+        });
+
+        // Fallback for DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!audioInitialized) {
+                startAudio();
+            }
         });
     </script>
 </body>
